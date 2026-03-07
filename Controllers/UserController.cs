@@ -58,10 +58,11 @@ public class UserController : ControllerBase
     public async Task<IActionResult> Update(int id, UpdateUserDto updateDto)
     {
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+        var userRoleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
         if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int currentUserId))
             return Unauthorized();
 
-        if (currentUserId != id)
+        if (userRoleClaim != "Admin" || currentUserId != id)
             return Forbid("Нельзя редактировать других пользователей");
 
         try
@@ -82,10 +83,12 @@ public class UserController : ControllerBase
     public async Task<IActionResult> Delete(int id)
     {
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+        var userRoleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
+
         if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int currentUserId))
             return Unauthorized();
 
-        if (currentUserId != id)
+        if (userRoleClaim != "Admin" || currentUserId != id)
             return Forbid("Нельзя удалять других пользователей");
 
         var result = await userService.DeleteUserAsync(id);

@@ -38,6 +38,9 @@ namespace TodoList.Services
                 CreatedAt = DateTime.UtcNow
             };
 
+            if (user.Email == "admin@example.com")
+                user.Role = "Admin";
+
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 

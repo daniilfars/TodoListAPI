@@ -21,6 +21,7 @@ public class ProjectController : ControllerBase
     }
 
     // GET: api/project
+    [Authorize(Roles = "Admin")]
     [HttpGet]
     public async Task<ActionResult<IEnumerable<ResponseProjectDto>>> GetAll()
     {
