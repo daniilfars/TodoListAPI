@@ -25,7 +25,6 @@ builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<ITagService, TagService>();
 
-// HttpContextAccessor
 builder.Services.AddHttpContextAccessor();
 
 // Swagger

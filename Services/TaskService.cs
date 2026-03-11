@@ -1,9 +1,11 @@
-﻿using TodoList.Models.DTOs.CreateDTOs;
+﻿using Microsoft.EntityFrameworkCore;
+using System.Linq.Dynamic.Core;
+using TodoList.Data;
+using TodoList.Models;
+using TodoList.Models.DTOs.CreateDTOs;
 using TodoList.Models.DTOs.ResponseDTOs;
 using TodoList.Models.DTOs.UpdateDTOs;
-using TodoList.Models;
-using TodoList.Data;
-using Microsoft.EntityFrameworkCore;
+using TodoList.Models.RequestFeatures;
 
 namespace TodoList.Services;
 
@@ -78,7 +80,7 @@ public class TaskService : ITaskService
         return true;
     }
 
-    public async Task<IEnumerable<ResponseTaskDto>> GetAllTasksAsync()
+    /*public async Task<IEnumerable<ResponseTaskDto>> GetAllTasksAsync()
     {
         return await db.Tasks.AsNoTracking().Include(t => t.Tags).OrderByDescending(t => t.CreatedAt).Select(task => new ResponseTaskDto
         {
@@ -93,7 +95,7 @@ public class TaskService : ITaskService
                     Name = t.Name
                 }).ToList()
         }).ToListAsync();
-    }
+    }*/
 
     public async Task<ResponseTaskDto?> GetTaskByIdAsync(int id)
     {
@@ -183,5 +185,59 @@ public class TaskService : ITaskService
                 Name = t.Name
             }).ToList()
         };
+    }
+    public async Task<ResponsePaged<ResponseTaskDto>> GetTasksAsync(TaskQueryParameters parameters, int userId)
+    {
+        IQueryable<TaskItem> query = db.Tasks.Include(t => t.Tags).Include(t => t.Project).Where(t => t.Project.UserId == userId).AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(parameters.SearchTerm))
+        {
+            var term = parameters.SearchTerm.ToLower();
+            query = query.Where(t => t.Title.ToLower().Contains(term) || (t.Description != null && t.Description.ToLower().Contains(term)));
+        }
+
+        if (parameters.IsCompleted.HasValue)
+            query = query.Where(t => t.IsCompleted == parameters.IsCompleted.Value);
+
+        if (parameters.FromDate.HasValue)
+            query = query.Where(t => t.CreatedAt >= parameters.FromDate.Value);
+
+        if (parameters.ToDate.HasValue)
+        {
+            var toDateEnd = parameters.ToDate.Value.Date.AddDays(1).AddTicks(-1);
+            query = query.Where(t => t.CreatedAt <= toDateEnd);
+        }
+
+        var totalCount = await query.CountAsync();
+
+        if (!string.IsNullOrWhiteSpace(parameters.SortBy))
+        {
+            string orderBy = $"{parameters.SortBy} {parameters.SortOrder}";
+            query = query.OrderBy(orderBy);
+        }
+        else
+            query = query.OrderByDescending(t => t.CreatedAt);
+
+
+        var items = await query
+            .Skip((parameters.PageNumber - 1) * parameters.PageSize)
+            .Take(parameters.PageSize)
+            .Select(t => new ResponseTaskDto
+            {
+                Id = t.Id,
+                Title = t.Title,
+                Description = t.Description,
+                CreatedAt = t.CreatedAt,
+                IsCompleted = t.IsCompleted,
+                ProjectId = t.ProjectId,
+                Tags = t.Tags.Select(tag => new ResponseTagDto
+                {
+                    Id = tag.Id,
+                    Name = tag.Name
+                }).ToList()
+            })
+            .ToListAsync();
+
+        return new ResponsePaged<ResponseTaskDto>(items, totalCount, parameters.PageNumber, parameters.PageSize);
     }
 }

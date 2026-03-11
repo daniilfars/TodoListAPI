@@ -1,9 +1,11 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using TodoList.Services;
-using TodoList.Models.DTOs.ResponseDTOs;
+using System.Security.Claims;
 using TodoList.Models.DTOs.CreateDTOs;
+using TodoList.Models.DTOs.ResponseDTOs;
 using TodoList.Models.DTOs.UpdateDTOs;
+using TodoList.Models.RequestFeatures;
+using TodoList.Services;
 
 namespace TodoList.Controllers;
 
@@ -19,13 +21,13 @@ public class TaskController : ControllerBase
         taskService = _taskService;
     }
 
-    // GET: api/task
+    /*// GET: api/task
     [HttpGet]
     public async Task<ActionResult<IEnumerable<ResponseTaskDto>>> GetAll()
     {
         var items = await taskService.GetAllTasksAsync();
         return Ok(items);
-    }
+    }*/
 
     // GET: api/task/5
     [HttpGet("{id}")]
@@ -77,5 +79,17 @@ public class TaskController : ControllerBase
         if (!result)
             return NotFound();
         return NoContent();
+    }
+
+    // GET: api/task
+    [HttpGet]
+    public async Task<ActionResult<ResponsePaged<ResponseTaskDto>>> GetTasks([FromQuery] TaskQueryParameters parameters)
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+        if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out var userId))
+            return Unauthorized(new { message = "User ID not found in token" });
+
+        var result = await taskService.GetTasksAsync(parameters, userId);
+        return Ok(result);
     }
 }
