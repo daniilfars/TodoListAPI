@@ -12,6 +12,7 @@
 - **JWT** (аутентификация, Bearer токены)
 - **BCrypt.Net-Next** (хеширование паролей)
 - **Swagger / OpenAPI** (документация)
+- **System.Linq.Dynamic.Core** (динамическая сортировка)
 
 ---
 
@@ -24,6 +25,7 @@
 
 ### 📁 Проекты
 - Создание, просмотр, обновление, удаление проектов
+- Привязка проектов к конкретному пользователю
 
 ### ✅ Задачи
 - Создание, просмотр, обновление, удаление задач
@@ -36,11 +38,11 @@
 - Автоматическая проверка уникальности имени тега
 - Защита от удаления тега, который используется в задачах
 
-### 🔍 Дополнительно
-- Валидация входных данных через DTO
-- Обработка бизнес-исключений (дубликаты, несуществующие записи)
-- Оптимизация запросов (`AsNoTracking()` для чтения)
-- Асинхронные методы
+### 🔍 Расширенная работа со списком задач
+- **Пагинация** – постраничный вывод с метаданными
+- **Фильтрация** – по поисковому запросу, статусу выполнения, диапазону дат
+- **Сортировка** – по заголовку, дате создания, статусу
+- **Динамические параметры** – все через query string
 
 ---
 
@@ -55,39 +57,24 @@
 
 1. **Клонировать репозиторий**
    ```bash
-   git clone https://github.com/ваш-логин/TodoList.git
+   git clone https://github.com/daniilfars/TodoList.git
    cd TodoList
    ```
 
-2. **Настроить базу данных**  
-   В файле `appsettings.Development.json` (или через `dotnet user-secrets`) укажите строку подключения:
-   ```json
-   "ConnectionStrings": {
-     "DefaultConnection": "Host=localhost;Port=5432;Database=TodoList;Username=postgres;Password=ваш_пароль"
-   }
+2. **Настроить базу данных и JWT**  
+   Скопируйте файл `appsettings.Example.json` в `appsettings.json` и заполните своими данными.
 
-3. **Настроить JWT**  
-   В том же файле укажите параметры JWT:
-   ```json
-   "JwtSettings": {
-     "SecretKey": "ваш-секретный-ключ-минимум-32-символа",
-     "Issuer": "TodoListAPI",
-     "Audience": "TodoListAPI",
-     "ExpiryMinutes": 60
-   }
-   ```
-
-4. **Применить миграции**
+3. **Применить миграции**
    ```bash
    dotnet ef database update
    ```
 
-5. **Запустить приложение**
+4. **Запустить приложение**
    ```bash
    dotnet run
    ```
 
-6. **Открыть документацию Swagger**  
+5. **Открыть документацию Swagger**  
    Перейдите по адресу `https://localhost:5001/swagger` (порт может отличаться)
 
 ---
@@ -131,11 +118,13 @@ POST /api/auth/register
 Authorization: Bearer {ваш_токен}
 ```
 
-#### Проекты
+---
+
+### 📁 Проекты
 
 | Метод | Эндпоинт | Описание |
 |-------|----------|----------|
-| GET | `/api/project` | Получить все проекты |
+| GET | `/api/project` | Получить все проекты текущего пользователя |
 | GET | `/api/project/{id}` | Получить проект по ID |
 | POST | `/api/project` | Создать новый проект |
 | PUT | `/api/project/{id}` | Обновить проект |
@@ -151,16 +140,53 @@ POST /api/project
 }
 ```
 
-#### Задачи
+---
+
+### ✅ Задачи
+
+#### Базовые операции
 
 | Метод | Эндпоинт | Описание |
 |-------|----------|----------|
-| GET | `/api/task` | Получить все задачи |
+| GET | `/api/task` | Получить задачи с пагинацией, фильтрацией и сортировкой |
 | GET | `/api/task/{id}` | Получить задачу по ID |
 | GET | `/api/task/bytag/{tagId}` | Получить задачи по тегу |
 | POST | `/api/task` | Создать задачу |
 | PUT | `/api/task/{id}` | Обновить задачу |
 | DELETE | `/api/task/{id}` | Удалить задачу |
+
+#### 📊 Пагинация, фильтрация и сортировка
+
+Эндпоинт `GET /api/task` поддерживает расширенные параметры запроса:
+
+| Параметр | Тип | Описание | Пример |
+|----------|-----|----------|--------|
+| `pageNumber` | int | Номер страницы (по умолчанию 1) | `?pageNumber=2` |
+| `pageSize` | int | Размер страницы (макс. 50, по умолч. 10) | `?pageSize=5` |
+| `searchTerm` | string | Поиск по заголовку и описанию | `?searchTerm=купить` |
+| `isCompleted` | bool | Фильтр по статусу выполнения | `?isCompleted=false` |
+| `fromDate` | date | Задачи, созданные после даты (YYYY-MM-DD) | `?fromDate=2026-03-01` |
+| `toDate` | date | Задачи, созданные до даты | `?toDate=2026-03-10` |
+| `sortBy` | string | Поле для сортировки (`title`, `createdAt`, `isCompleted`) | `?sortBy=createdAt` |
+| `sortOrder` | string | Направление (`asc` или `desc`, по умолч. `asc`) | `?sortOrder=desc` |
+
+**Пример запроса с пагинацией и фильтрацией:**
+```
+GET /api/task?searchTerm=купить&isCompleted=false&sortBy=createdAt&sortOrder=desc&pageNumber=2&pageSize=5
+```
+
+**Формат ответа:**
+```json
+{
+  "items": [ ... задачи ... ],
+  "pageNumber": 2,
+  "pageSize": 5,
+  "totalCount": 47,
+  "totalPages": 10,
+  "hasPreviousPage": true,
+  "hasNextPage": true
+}
+```
 
 **Пример создания задачи с тегами:**
 ```json
@@ -173,7 +199,9 @@ POST /api/task
 }
 ```
 
-#### Теги
+---
+
+### 🏷️ Теги
 
 | Метод | Эндпоинт | Описание |
 |-------|----------|----------|
@@ -184,7 +212,9 @@ POST /api/task
 | PUT | `/api/tag/{id}` | Обновить тег |
 | DELETE | `/api/tag/{id}` | Удалить тег |
 
-#### Пользователи
+---
+
+### 👥 Пользователи
 
 | Метод | Эндпоинт | Описание |
 |-------|----------|----------|
@@ -198,46 +228,26 @@ POST /api/task
 
 ---
 
+## 🔐 Права доступа
+
+- Каждый пользователь видит, редактирует и удаляет **только свои проекты и задачи**
+- При создании задачи она автоматически привязывается к пользователю через проект
+- Доступ к чужим данным возвращает ошибку `403 Forbidden`
+
+---
+
 ## 📁 Структура проекта
 
 ```
 TodoList/
 ├── Controllers/               # Эндпоинты API
-│   ├── AuthController.cs
-│   ├── ProjectController.cs
-│   ├── TaskController.cs
-│   ├── TagController.cs
-│   └── UserController.cs
-├── Data/
-│   └── AppDbContext.cs         # Контекст EF Core
-├── Models/                      # Сущности БД
-│   ├── User.cs
-│   ├── Project.cs
-│   ├── TaskItem.cs
-│   ├── Tag.cs
-│   └── DTOs/                    # Объекты передачи данных
-│       ├── CreateDTOs/
-│       ├── UpdateDTOs/
-│       └── ResponseDTOs/
-├── Services/                     # Бизнес-логика (интерфейсы и реализации)
-│   ├── IAuthService.cs
-│   ├── AuthService.cs
-│   ├── ITokenService.cs
-│   ├── TokenService.cs
-│   ├── IUserService.cs
-│   ├── UserService.cs
-│   ├── IProjectService.cs
-│   ├── ProjectService.cs
-│   ├── ITaskService.cs
-│   ├── TaskService.cs
-│   ├── ITagService.cs
-│   └── TagService.cs
-├── Configurations/
-│   └── JwtSettings.cs            # Класс для настроек JWT
-├── Migrations/                    # Миграции EF Core
-├── Program.cs                     # Точка входа и DI
-├── appsettings.json               # Конфигурация
-└── TodoList.csproj                # Файл проекта
+├── Data/                       # Контекст EF Core
+├── Models/                      # Сущности БД и DTO
+├── Services/                    # Бизнес-логика
+├── Configurations/              # Классы конфигурации
+├── Migrations/                   # Миграции EF Core
+├── Program.cs                    # Точка входа
+└── TodoList.csproj               # Файл проекта
 ```
 
 ---
@@ -275,12 +285,12 @@ curl -X POST https://localhost:5001/api/project \
 
 ## 📄 Лицензия
 
-Этот проект распространяется под лицензией MIT. Подробнее см. файл `LICENSE`.
+Этот проект распространяется под лицензией MIT.
 
 ---
 
 **Автор:** Данииль  
-**GitHub:** https://github.com/daniilfars/ 
+**GitHub:** [https://github.com/daniilfars/](https://github.com/daniilfars/)
 
 ---
 
