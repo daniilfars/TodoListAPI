@@ -1,3 +1,4 @@
+# Улучшенная версия проекта: https://github.com/daniilfars/TodoList.CleanArch
 # 📋 TodoList API
 
 **RESTful API** для управления задачами с поддержкой проектов, тегов и полноценной JWT-аутентификацией. Проект разработан на **ASP.NET Core 10** с использованием **Entity Framework Core** и **PostgreSQL**.
